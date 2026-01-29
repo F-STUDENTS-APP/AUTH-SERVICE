@@ -29,43 +29,102 @@ const getServers = () => {
   return servers;
 };
 
-const options: swaggerJsdoc.Options = {
-  definition: {
-    openapi: '3.0.0',
-    info: {
-      title: 'Auth Service API',
-      version: '1.0.0',
-      description: 'Authentication and Authorization Service API Documentation',
+// Define OpenAPI spec directly (Inline) to avoid file scanning issues in serverless
+const swaggerDefinition = {
+  openapi: '3.0.0',
+  info: {
+    title: 'Auth Service API',
+    version: '1.0.0',
+    description: 'Authentication and Authorization Service API Documentation',
+  },
+  servers: getServers(),
+  components: {
+    securitySchemes: {
+      bearerAuth: {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+      },
     },
-    servers: getServers(),
-    components: {
-      securitySchemes: {
-        bearerAuth: {
-          type: 'http',
-          scheme: 'bearer',
-          bearerFormat: 'JWT',
+    schemas: {
+      Error: {
+        type: 'object',
+        properties: {
+          status: { type: 'string', example: 'error' },
+          message: { type: 'string', example: 'Internal Server Error' },
         },
       },
-      schemas: {
-        Error: {
-          type: 'object',
-          properties: {
-            status: { type: 'string', example: 'error' },
-            message: { type: 'string', example: 'Internal Server Error' },
+    },
+  },
+  security: [
+    {
+      bearerAuth: [],
+    },
+  ],
+  paths: {
+    '/auth/login': {
+      post: {
+        summary: 'User login',
+        tags: ['Auth'],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['username', 'password'],
+                properties: {
+                  username: { type: 'string' },
+                  password: { type: 'string' },
+                },
+              },
+            },
           },
         },
+        responses: {
+          '200': { description: 'Login successful' },
+          '401': { description: 'Invalid credentials' },
+        },
       },
     },
-    security: [
-      {
-        bearerAuth: [],
+    '/auth/logout': {
+      post: {
+        summary: 'User logout',
+        tags: ['Auth'],
+        security: [{ bearerAuth: [] }],
+        responses: {
+          '200': { description: 'Logout successful' },
+        },
       },
-    ],
+    },
+    '/auth/token/refresh': {
+      get: {
+        summary: 'Refresh access token',
+        tags: ['Auth'],
+        responses: {
+          '200': { description: 'Token refreshed' },
+          '401': { description: 'Invalid/expired refresh token' },
+        },
+      },
+    },
+    '/auth/authorize': {
+      get: {
+        summary: 'Get module permissions and final authorized token',
+        tags: ['Auth'],
+        security: [{ bearerAuth: [] }],
+        responses: {
+          '200': { description: 'Auth success' },
+          '403': { description: 'Forbidden' },
+        },
+      },
+    },
   },
-  apis: [
-    './src/routes/*.ts', // Development (TypeScript)
-    './dist/routes/*.js', // Production (Compiled JavaScript)
-  ],
+  tags: [{ name: 'Auth', description: 'Authentication management' }],
+};
+
+const options: swaggerJsdoc.Options = {
+  definition: swaggerDefinition as any,
+  apis: [], // Disable file scanning
 };
 
 const swaggerSpec = swaggerJsdoc(options);
