@@ -45,6 +45,11 @@ app.get('/health', (req: Request, res: Response) => {
   res.status(200).json({ status: 'OK', service: 'auth-service' });
 });
 
+// Root redirect to API docs
+app.get('/', (req: Request, res: Response) => {
+  res.redirect('/api-docs');
+});
+
 // Swagger Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
@@ -56,7 +61,11 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   sendError(res, status, message);
 });
 
-if (process.env.NODE_ENV !== 'test') {
+// Only start the server if not in test or serverless environment
+// Vercel will use the exported app directly
+const isVercel = process.env.VERCEL === '1' || process.env.VERCEL_ENV !== undefined;
+
+if (process.env.NODE_ENV !== 'test' && !isVercel) {
   app.listen(port, () => {
     logger.info(`Auth Service listening on port ${port}`);
   });
