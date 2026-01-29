@@ -15,7 +15,12 @@ const app = express();
 const port = process.env.PORT || 3001;
 
 // Middleware
-app.use(helmet());
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+  })
+);
 app.use(
   cors({
     origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
