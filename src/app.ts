@@ -5,9 +5,10 @@ import cookieParser from 'cookie-parser';
 import 'express-async-errors';
 import dotenv from 'dotenv';
 import logger from './config/logger';
-import { sendError } from './utils/response';
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './config/swagger';
+import { errorHandler } from '@common/middlewares/error.handler';
+import { healthCheck } from '@common/utils/health';
 
 dotenv.config();
 
@@ -46,16 +47,13 @@ app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/roles', roleRoutes);
 app.use('/api/v1/modules', moduleRoutes);
 
-app.get('/health', (req: Request, res: Response) => {
-  res.status(200).json({ status: 'OK', service: 'auth-service' });
-});
+app.get('/health', healthCheck('auth-service'));
 
 // Root redirect to API docs
 app.get('/', (req: Request, res: Response) => {
   res.redirect('/api-docs');
 });
 
-// Swagger Documentation
 // Swagger Documentation
 const swaggerOptions = {
   customCssUrl: 'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.0.0/swagger-ui.min.css',
@@ -68,12 +66,7 @@ const swaggerOptions = {
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, swaggerOptions));
 
 // Error handling
-app.use((err: any, req: Request, res: Response, next: NextFunction) => {
-  logger.error(err.stack);
-  const status = err.statusCode || 500;
-  const message = err.message || 'Internal Server Error';
-  sendError(res, status, message);
-});
+app.use(errorHandler);
 
 // Only start the server if not in test or serverless environment
 // Vercel will use the exported app directly
