@@ -41,3 +41,12 @@ prisma/migrations/
 # Temporary files
 *.tmp
 .cache/
+
+# Debug/lint output files
+error_*.txt
+lint_output.txt
+lint_results*.txt
+lint_results*.json
+lint_report*.json
+final_lint*.json
+test_output.txt

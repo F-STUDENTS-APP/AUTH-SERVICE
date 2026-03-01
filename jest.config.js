@@ -4,7 +4,7 @@ module.exports = {
     roots: ['<rootDir>/src'],
     testMatch: ['**/__tests__/**/*.test.ts'],
     moduleNameMapper: {
-        '^@common/(.*)$': '<rootDir>/../common/$1',
+        '^@microservices/common/(.*)$': '<rootDir>/../common/$1',
         '^@/(.*)$': '<rootDir>/src/$1'
     },
     collectCoverageFrom: [

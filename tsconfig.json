@@ -16,14 +16,16 @@
             "@/*": [
                 "src/*"
             ],
-            "@common/*": [
+            "@microservices/common/*": [
                 "../common/*"
+            ],
+            "@microservices/common": [
+                "../common"
             ]
         }
     },
     "include": [
-        "src/**/*",
-        "../common/**/*"
+        "src/**/*"
     ],
     "exclude": [
         "node_modules",

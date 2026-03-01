@@ -7,13 +7,35 @@ import dotenv from 'dotenv';
 import logger from './config/logger';
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './config/swagger';
-import { errorHandler } from '@common/middlewares/error.handler';
-import { healthCheck } from '@common/utils/health';
+import { errorHandler } from '@microservices/common/middlewares/error.handler';
+import { healthCheck } from '@microservices/common/utils/health';
+
+import rateLimit from 'express-rate-limit';
+import { AUTH_CONFIG } from './config/constants';
 
 dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 3001;
+
+// Trust proxy if behind LB/Vercel
+if (process.env.NODE_ENV === 'production' || process.env.VERCEL === '1') {
+  app.set('trust proxy', 1);
+}
+
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'), // 15 mins
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100'),
+  message: {
+    success: false,
+    message: 'Too many requests from this IP, please try again after 15 minutes',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use(limiter);
 
 // Middleware
 app.use(
@@ -24,7 +46,11 @@ app.use(
 );
 app.use(
   cors({
-    origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
+    origin: process.env.ALLOWED_ORIGINS
+      ? process.env.ALLOWED_ORIGINS.split(',')
+          .map((o) => o.trim())
+          .filter((o) => o && o !== '*')
+      : [],
     credentials: true,
   })
 );

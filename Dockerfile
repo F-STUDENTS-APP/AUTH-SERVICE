@@ -1,17 +1,26 @@
-# Multi-stage build for production optimization
+﻿# Multi-stage build for production optimization
 FROM node:20-alpine AS builder
+
+RUN apk add --no-cache openssl libc6-compat
 
 WORKDIR /app
 
+# Copy shared common folder
+COPY common ./common
+
+# Setup service directory
+WORKDIR /app/auth-service
+
 # Copy package files
-COPY package*.json ./
-COPY tsconfig.json ./
+COPY auth-service/package*.json ./
+COPY auth-service/tsconfig.json ./
+COPY auth-service/prisma ./prisma
 
 # Install dependencies
-RUN npm ci
+RUN npm install --registry=https://registry.npmjs.org/
 
 # Copy source code
-COPY . .
+COPY auth-service .
 
 # Generate Prisma Client
 RUN npx prisma generate
@@ -22,20 +31,31 @@ RUN npm run build
 # Production stage
 FROM node:20-alpine
 
+RUN apk add --no-cache openssl libc6-compat
+
 WORKDIR /app
 
+# Copy common folder to production stage
+COPY common ./common
+
+WORKDIR /app/auth-service
+
 # Copy package files
-COPY package*.json ./
+COPY auth-service/package*.json ./
 
 # Install production dependencies only
-RUN npm ci --only=production
+COPY auth-service/prisma ./prisma
+RUN npm install --registry=https://registry.npmjs.org/ --omit=dev --ignore-scripts
 
-# Copy Prisma schema and generate client
-COPY prisma ./prisma
+# Generate Prisma client
 RUN npx prisma generate
 
 # Copy built application
-COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/auth-service/dist ./dist
+
+# Run as non-root user for security
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+USER appuser
 
 # Expose port
 EXPOSE 3001
