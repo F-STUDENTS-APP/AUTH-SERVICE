@@ -8,8 +8,8 @@ import {
   validatePasswordStrength,
 } from '../services/password.service';
 import crypto from 'crypto';
-import axios from 'axios';
 import logger from '../config/logger';
+import { RabbitMQ } from '@microservices/common';
 
 export const forgotPassword = async (req: Request, res: Response) => {
   const { email } = req.body;
@@ -37,11 +37,9 @@ export const forgotPassword = async (req: Request, res: Response) => {
     },
   });
 
-  // Send email with token via notification-service
+  // Send email with token via notification-service (using RabbitMQ)
   try {
-    const NOTIFICATION_SERVICE_URL =
-      process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:3007';
-    await axios.post(`${NOTIFICATION_SERVICE_URL}/api/v1/notifications/trigger/urgent`, {
+    await RabbitMQ.publish('notifications', {
       userId: user.id,
       type: 'PASSWORD_RESET',
       title: 'Permintaan Reset Password',
@@ -49,9 +47,10 @@ export const forgotPassword = async (req: Request, res: Response) => {
       category: 'SYSTEM',
       channels: ['EMAIL'],
     });
+    logger.info(`Message published to RabbitMQ for password reset email: ${user.email}`);
   } catch (error) {
-    logger.error(`Failed to send password reset email: ${error}`);
-    // We still return success as the token is generated and stored
+    logger.error(`Failed to publish message to RabbitMQ: ${error}`);
+    // Fallback or just log it - message is now queued or lost but won't block the response
   }
 
   return sendResponse(res, 200, true, 'Password reset link sent to email');
@@ -99,7 +98,7 @@ export const changePassword = async (req: Request, res: Response) => {
   if (error) return sendError(res, 400, error.details[0].message);
 
   const { currentPassword, newPassword } = value;
-  const user = await prisma.user.findUnique({ where: { id: (req as any).user.id } });
+  const user = await prisma.user.findUnique({ where: { id: req.user?.id } });
 
   if (!user || !(await comparePassword(currentPassword, user.password))) {
     return sendError(res, 401, 'Invalid current password');

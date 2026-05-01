@@ -10,20 +10,33 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
   }
 
   const token = authHeader.split(' ')[1];
-  const decoded: any = verifyAccessToken(token);
+  const decoded = verifyAccessToken(token);
 
   if (!decoded) {
     return sendError(res, 401, 'Unauthorized: Invalid or expired token');
   }
 
-  // Enforce module-based authorization unless it's the authorize endpoint itself
+  // Enforce module-based authorization unless it's the authorize or logout endpoint
   const isAuthorizeEndpoint = req.path.endsWith('/authorize') && req.method === 'GET';
-  if (!decoded.isAuthorized && !isAuthorizeEndpoint) {
+  const isLogoutEndpoint = req.path.endsWith('/logout') && req.method === 'POST';
+
+  if (!decoded.isAuthorized && !isAuthorizeEndpoint && !isLogoutEndpoint) {
     return sendError(
       res,
       403,
       'Forbidden: Token is not authorized. Please hit /auth/authorize first.'
     );
+  }
+
+  // 2. Verify Session Validity (Check if the Refresh Token/Session is still active)
+  if (decoded.sid) {
+    const activeSession = await prisma.refreshToken.findUnique({
+      where: { id: decoded.sid },
+    });
+
+    if (!activeSession || activeSession.isRevoked || activeSession.expiresAt < new Date()) {
+      return sendError(res, 401, 'Unauthorized: Session has been terminated or revoked');
+    }
   }
 
   const user = await prisma.user.findUnique({
@@ -41,11 +54,11 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
     return sendError(res, 401, 'Unauthorized: User not found or inactive');
   }
 
-  (req as any).user = {
+  req.user = {
     id: user.id,
     username: user.username,
     email: user.email,
-    roles: user.userRoles.map((ur: any) => ur.role.code),
+    roles: user.userRoles.map((ur) => ur.role.code),
   };
 
   next();
@@ -53,7 +66,7 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
 
 export const authorize = (roles: string[]) => {
   return (req: Request, res: Response, next: NextFunction) => {
-    const user = (req as any).user;
+    const user = req.user;
     if (!user) {
       return sendError(res, 401, 'Unauthorized');
     }

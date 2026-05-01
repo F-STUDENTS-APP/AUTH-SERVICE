@@ -60,6 +60,14 @@ router.post('/logout', authenticate, authController.logout);
  *   get:
  *     summary: Refresh access token
  *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: header
+ *         name: x-refresh-token
+ *         schema:
+ *           type: string
+ *         description: Refresh token (Can also use Authorization header)
  *     responses:
  *       200:
  *         description: Token refreshed

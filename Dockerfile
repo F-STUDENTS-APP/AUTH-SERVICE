@@ -7,6 +7,7 @@ WORKDIR /app
 
 # Copy shared common folder
 COPY common ./common
+RUN cd common && npm install --registry=https://registry.npmjs.org/
 
 # Setup service directory
 WORKDIR /app/auth-service
